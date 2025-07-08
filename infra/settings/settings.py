@@ -111,7 +111,7 @@ class JWTSettings(BaseSettings):
     and token expiration times.
     """
 
-    secret_key: str = Field(default="your-secret-key-here-must-be-at-least-32-characters-long", description="JWT secret key for signing tokens")
+    secret_key: str = Field(default="", description="JWT secret key for signing tokens")
     algorithm: str = Field(default="HS256", description="JWT signing algorithm")
     issuer: str = Field(default="fiap-x-auth", description="JWT token issuer")
 
@@ -226,7 +226,7 @@ class Settings(BaseSettings):
         case_sensitive = False
         env_file = ".env"
         env_file_encoding = "utf-8"
-        extra = "allow"
+        extra = "ignore"  # Mudei de "allow" para "ignore" para evitar erros
 
     @property
     def is_production(self) -> bool:

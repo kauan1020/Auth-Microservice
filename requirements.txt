@@ -41,5 +41,6 @@ structlog==23.2.0
 # Utils
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
-pytest==8.4.1
 pytest-tornasync==0.6.0.post2
+
+boto3==1.39.3

@@ -4,10 +4,12 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: fiap_x_auth_postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: fiap_x_auth
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -17,7 +19,7 @@ services:
       - fiap_x_shared_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d fiap_x_auth && psql -U postgres -d fiap_x_auth -c 'SELECT 1'"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -36,7 +38,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: fiap_x_auth_redis
-    command: redis-server --appendonly yes --requirepass redis123 --maxmemory 256mb --maxmemory-policy allkeys-lru
+    env_file:
+      - .env
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     ports:
@@ -45,39 +49,54 @@ services:
       - fiap_x_shared_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 20s
+
+  db_setup:
+    image: postgres:15-alpine
+    container_name: fiap_x_auth_db_setup
+    env_file:
+      - .env
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL to be ready...'
+        until pg_isready -h postgres -p 5432 -U ${DB_USER}; do
+          echo 'Waiting for postgres...'
+          sleep 2
+        done
+        echo 'PostgreSQL is ready!'
+        
+        echo 'Creating database if it does not exist...'
+        psql -h postgres -U ${DB_USER} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'\" | grep -q 1 || psql -h postgres -U ${DB_USER} -d postgres -c \"CREATE DATABASE ${DB_NAME};\"
+        
+        echo 'Database setup complete!'
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fiap_x_shared_network
+    restart: "no"
 
   migrations:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: fiap_x_auth_migrations
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/fiap_x_auth
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: fiap_x_auth
-      DB_USER: postgres
-      DB_PASSWORD: postgres123
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       PYTHONPATH: /app
-    command: >
-      sh -c "
-        echo 'Waiting for database to be ready...' &&
-        until pg_isready -h postgres -p 5432 -U postgres; do
-          echo 'Database not ready, waiting 2 seconds...'
-          sleep 2
-        done &&
-        echo 'Database is ready, running migrations...' &&
-        alembic upgrade head &&
-        echo 'Migrations completed successfully'
-      "
+    command: ["sh", "-c", "sleep 5 && alembic upgrade head"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      db_setup:
+        condition: service_completed_successfully
     networks:
       - fiap_x_shared_network
     volumes:
@@ -90,39 +109,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fiap_x_auth_service
+    env_file:
+      - .env
     environment:
-      APP_NAME: "FIAP X Authentication Service"
-      APP_VERSION: "1.0.0"
-      APP_DEBUG: "false"
-      APP_HOST: "0.0.0.0"
-      APP_PORT: "8000"
-      APP_ENVIRONMENT: "development"
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: fiap_x_auth
-      DB_USER: postgres
-      DB_PASSWORD: postgres123
-      DB_POOL_SIZE: 20
-      DB_MAX_OVERFLOW: 30
-      DB_ECHO: "false"
-      DB_POOL_PRE_PING: "true"
-      DB_POOL_RECYCLE: 3600
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: redis123
-      REDIS_DB: 0
-      JWT_SECRET_KEY: "your-super-secret-jwt-key-minimum-32-characters-long"
-      JWT_ALGORITHM: "HS256"
-      JWT_ISSUER: "fiap-x-auth"
-      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 15
-      JWT_REFRESH_TOKEN_EXPIRE_DAYS: 30
-      SECURITY_BCRYPT_ROUNDS: 12
-      SECURITY_CHECK_COMPROMISED_PASSWORDS: "true"
-      SECURITY_RATE_LIMIT_REQUESTS: 100
-      SECURITY_CORS_ORIGINS: '["*"]'
       PYTHONPATH: /app
     ports:
-      - "8000:8000"
+      - "${APP_PORT}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -141,21 +133,7 @@ services:
       retries: 5
       start_period: 120s
     restart: unless-stopped
-    command: >
-      sh -c "
-        echo 'Waiting for database connection...' &&
-        until pg_isready -h postgres -p 5432 -U postgres; do
-          echo 'Database not ready, waiting 3 seconds...'
-          sleep 3
-        done &&
-        echo 'Testing database connection...' &&
-        until PGPASSWORD=postgres123 psql -h postgres -U postgres -d fiap_x_auth -c 'SELECT 1' > /dev/null 2>&1; do
-          echo 'Database connection failed, waiting 3 seconds...'
-          sleep 3
-        done &&
-        echo 'Database connection successful, starting application...' &&
-        uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info
-      "
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
 
 volumes:
   postgres_data:

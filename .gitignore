@@ -29,6 +29,12 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
