@@ -211,10 +211,10 @@ jobs:
 
     - name: Deploy to EKS
       env:
-        IMAGE_URI: ${{ needs.build-and-push.outputs.image }}
+        IMAGE_URI: 720049726178.dkr.ecr.us-east-1.amazonaws.com/fiap-x-auth-service:latest
       run: |
         cd infrastructure
-        echo "Deploying with image: $IMAGE_URI"
+        echo "Deploying with image: 720049726178.dkr.ecr.us-east-1.amazonaws.com/fiap-x-auth-service:latest"
         echo "AUTH_DB_SECRET_ARN: $AUTH_DB_SECRET_ARN"
         echo "JWT_SECRET_ARN: $JWT_SECRET_ARN"
         echo "REDIS_SECRET_ARN: $REDIS_SECRET_ARN"
