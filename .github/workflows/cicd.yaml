@@ -227,8 +227,24 @@ jobs:
         
         # Aplicar no cluster
         envsubst < k8s/auth-service/deployment.yaml | kubectl apply -f -
+        
+        # Forçar restart do deployment para garantir que use a nova imagem
+        kubectl rollout restart deployment/auth-service -n $NAMESPACE
+        
+        # Aguardar o rollout
         kubectl rollout status deployment/auth-service -n $NAMESPACE --timeout=300s
+        
+        # Verificar status dos pods
+        echo "=== Pod Status ==="
         kubectl get pods -n $NAMESPACE -l app=auth-service
+        
+        # Verificar eventos se houver problema
+        echo "=== Recent Events ==="
+        kubectl get events -n $NAMESPACE --sort-by=.metadata.creationTimestamp --field-selector involvedObject.name=auth-service | tail -10
+        
+        # Verificar logs se houver pods falhando
+        echo "=== Pod Logs (if any issues) ==="
+        kubectl logs -n $NAMESPACE -l app=auth-service --tail=20 || true
 
     - name: Run smoke tests
       run: |
