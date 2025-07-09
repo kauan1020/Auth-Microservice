@@ -69,7 +69,7 @@ jobs:
         JWT_SECRET_KEY: test-jwt-secret-key-for-testing-only-minimum-32-chars
         APP_ENVIRONMENT: testing
       run: |
-        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+        pytest test/ -v --cov --cov-report=xml --cov-report=html
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
