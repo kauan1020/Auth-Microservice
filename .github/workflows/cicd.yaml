@@ -209,7 +209,7 @@ jobs:
 
     - name: Deploy to EKS
       env:
-        IMAGE_URI: "720049726178.dkr.ecr.us-east-1.amazonaws.com/fiap-x-auth-service:latest"
+        IMAGE_URI: "720049726178.dkr.ecr.us-east-1.amazonaws.com/fiap-x-dev-auth-service:latest"
       run: |
         cd infrastructure
         echo "Deploying with image: $IMAGE_URI"
