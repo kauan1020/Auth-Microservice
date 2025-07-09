@@ -203,11 +203,21 @@ jobs:
         echo "REDIS_SECRET_ARN=$(terraform output -raw redis_secret_arn)" >> $GITHUB_ENV
         echo "AWS_ACCOUNT_ID=$(terraform output -raw aws_account_id)" >> $GITHUB_ENV
 
+    - name: Get Secret ARNs
+      run: |
+        echo "AUTH_DB_SECRET_ARN=$(aws secretsmanager describe-secret --secret-id fiap-x-dev-auth-db-credentials --query 'ARN' --output text)" >> $GITHUB_ENV
+        echo "JWT_SECRET_ARN=$(aws secretsmanager describe-secret --secret-id fiap-x-dev-jwt-secret --query 'ARN' --output text)" >> $GITHUB_ENV
+        echo "REDIS_SECRET_ARN=$(aws secretsmanager describe-secret --secret-id fiap-x-dev-redis-secret --query 'ARN' --output text)" >> $GITHUB_ENV
+
     - name: Deploy to EKS
       env:
         IMAGE_URI: ${{ needs.build-and-push.outputs.image }}
       run: |
         cd infrastructure
+        echo "Deploying with image: $IMAGE_URI"
+        echo "AUTH_DB_SECRET_ARN: $AUTH_DB_SECRET_ARN"
+        echo "JWT_SECRET_ARN: $JWT_SECRET_ARN"
+        echo "REDIS_SECRET_ARN: $REDIS_SECRET_ARN"
         envsubst < k8s/auth-service/deployment.yaml | kubectl apply -f -
         kubectl rollout status deployment/auth-service -n $NAMESPACE --timeout=300s
         kubectl get pods -n $NAMESPACE -l app=auth-service
