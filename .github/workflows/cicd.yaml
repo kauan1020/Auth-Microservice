@@ -69,7 +69,7 @@ jobs:
         JWT_SECRET_KEY: test-jwt-secret-key-for-testing-only-minimum-32-chars
         APP_ENVIRONMENT: testing
       run: |
-        pytest test/ -v --cov --cov-report=xml --cov-report=html
+        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -104,9 +104,9 @@ jobs:
     - name: Get SonarQube URL
       run: |
         # Verificar se SonarQube está rodando no EKS
-        if kubectl get svc -n sonarqube sonarqube-service 2>/dev/null; then
+        if kubectl get svc -n sonarqube sonarqube 2>/dev/null; then
           # Port forward para acessar SonarQube
-          kubectl port-forward svc/sonarqube-service 9000:9000 -n sonarqube &
+          kubectl port-forward svc/sonarqube 9000:9000 -n sonarqube &
           sleep 10
           echo "SONAR_HOST_URL=http://localhost:9000" >> $GITHUB_ENV
         else
