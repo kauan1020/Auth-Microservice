@@ -1,4 +1,4 @@
-name: Auth Service CI/CD
+name: Video Service CI/CD
 
 on:
   push:
@@ -48,6 +48,11 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
@@ -66,17 +71,17 @@ jobs:
       env:
         DATABASE_URL: postgresql://test_user:test_pass_123@localhost:5432/test_db
         REDIS_URL: redis://localhost:6379/0
-        JWT_SECRET_KEY: test-jwt-secret-key-for-testing-only-minimum-32-chars
+        KAFKA_BOOTSTRAP_SERVERS: localhost:9092
         APP_ENVIRONMENT: testing
       run: |
-        pytest test/ -v --cov --cov-report=xml --cov-report=html
+        pytest test -v --cov --cov-report=xml --cov-report=html
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
-        flags: auth-service
-        name: auth-service-coverage
+        flags: video-service
+        name: video-service-coverage
 
   sonarqube:
     runs-on: ubuntu-latest
@@ -123,11 +128,11 @@ jobs:
       with:
         projectBaseDir: .
         args: >
-          -Dsonar.projectKey=fiap-x-auth-service
-          -Dsonar.projectName="FIAP X Auth Service"
+          -Dsonar.projectKey=fiap-x-video-service
+          -Dsonar.projectName="FIAP X Video Service"
           -Dsonar.projectVersion=1.0
           -Dsonar.sources=.
-          -Dsonar.exclusions=**/*_test.py,**/tests/**,**/test_*,**/__pycache__/**,**/venv/**,**/.venv/**,**/migrations/**,**/static/**,**/templates/**
+          -Dsonar.exclusions=**/*_test.py,**/test/**,**/test_*,**/__pycache__/**,**/venv/**,**/.venv/**,**/migrations/**,**/static/**,**/templates/**
           -Dsonar.python.coverage.reportPaths=coverage.xml
           -Dsonar.sourceEncoding=UTF-8
           -Dsonar.python.version=3.11
@@ -198,8 +203,7 @@ jobs:
     - name: Get Terraform outputs
       run: |
         cd infrastructure/terraform
-        echo "AUTH_DB_SECRET_ARN=$(terraform output -raw rds_auth_secret_arn)" >> $GITHUB_ENV
-        echo "JWT_SECRET_ARN=$(terraform output -raw jwt_secret_arn)" >> $GITHUB_ENV
+        echo "VIDEO_DB_SECRET_ARN=$(terraform output -raw rds_video_secret_arn)" >> $GITHUB_ENV
         echo "REDIS_SECRET_ARN=$(terraform output -raw redis_secret_arn)" >> $GITHUB_ENV
         echo "AWS_ACCOUNT_ID=$(terraform output -raw aws_account_id)" >> $GITHUB_ENV
 
@@ -208,15 +212,15 @@ jobs:
         IMAGE_URI: ${{ needs.build-and-push.outputs.image }}
       run: |
         cd infrastructure
-        envsubst < k8s/auth-service/deployment.yaml | kubectl apply -f -
-        kubectl rollout status deployment/auth-service -n $NAMESPACE --timeout=300s
-        kubectl get pods -n $NAMESPACE -l app=auth-service
+        envsubst < k8s/video-service/deployment.yaml | kubectl apply -f -
+        kubectl rollout status deployment/video-service -n $NAMESPACE --timeout=300s
+        kubectl get pods -n $NAMESPACE -l app=video-service
 
     - name: Run smoke tests
       run: |
-        kubectl port-forward svc/auth-service 8080:8000 -n $NAMESPACE &
+        kubectl port-forward svc/video-service 8081:8001 -n $NAMESPACE &
         sleep 10
-        curl -f http://localhost:8080/health || exit 1
+        curl -f http://localhost:8081/health || exit 1
         pkill -f "kubectl port-forward"
 
   notify:
