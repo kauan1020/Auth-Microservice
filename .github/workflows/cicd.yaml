@@ -120,6 +120,17 @@ jobs:
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+      with:
+        projectBaseDir: .
+        args: >
+          -Dsonar.projectKey=fiap-x-auth-service
+          -Dsonar.projectName="FIAP X Auth Service"
+          -Dsonar.projectVersion=1.0
+          -Dsonar.sources=.
+          -Dsonar.exclusions=**/*_test.py,**/tests/**,**/test_*,**/__pycache__/**,**/venv/**,**/.venv/**,**/migrations/**,**/static/**,**/templates/**
+          -Dsonar.python.coverage.reportPaths=coverage.xml
+          -Dsonar.sourceEncoding=UTF-8
+          -Dsonar.python.version=3.11
 
     - name: Stop port-forward
       if: always()
