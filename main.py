@@ -56,9 +56,9 @@ app = FastAPI(
     title=settings.app.app_name,
     version=settings.app.app_version,
     description="FIAP X Authentication Service - Secure user authentication and management API",
-    docs_url="/docs" if not settings.is_production else None,
-    redoc_url="/redoc" if not settings.is_production else None,
-    openapi_url="/openapi.json" if not settings.is_production else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
     lifespan=lifespan
 )
 
@@ -219,7 +219,7 @@ async def root():
             "environment": settings.app.environment,
             "status": "operational",
             "endpoints": {
-                "docs": "/docs" if not settings.is_production else "disabled",
+                "docs": "/docs",
                 "auth": "/auth",
                 "users": "/users",
                 "health": "/health"

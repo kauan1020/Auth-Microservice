@@ -115,7 +115,6 @@ async def register(request: RegisterRequest):
     try:
         settings = get_settings()
 
-        # Create fresh database connection and session
         db_connection = DatabaseConnection(
             database_url=settings.database.url,
             echo=settings.database.echo
@@ -123,11 +122,10 @@ async def register(request: RegisterRequest):
         db_connection.initialize()
 
         async with db_connection.get_session() as session:
-            # Initialize services and repositories
             email_gateway = EmailGateway(
                 smtp_host="localhost",
                 smtp_port=587,
-                from_email="kauan1020@hotmail.com",
+                from_email="xxx@hotmail.com",
                 from_name="FIAP X Authentication"
             )
 
