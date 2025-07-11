@@ -212,39 +212,29 @@ jobs:
         IMAGE_URI: "720049726178.dkr.ecr.us-east-1.amazonaws.com/fiap-x-dev-auth-service:latest"
       run: |
         cd infrastructure
-        echo "Deploying with image: $IMAGE_URI"
+        echo "Deploying Auth Service with image: $IMAGE_URI"
         echo "AUTH_DB_SECRET_ARN: $AUTH_DB_SECRET_ARN"
         echo "JWT_SECRET_ARN: $JWT_SECRET_ARN"
         echo "REDIS_SECRET_ARN: $REDIS_SECRET_ARN"
         
-        # Debug: mostrar antes da substituição
-        echo "=== Before envsubst ==="
-        grep -A 5 -B 5 "image:" k8s/auth-service/deployment.yaml
-        
-        # Aplicar substituições e mostrar resultado
-        echo "=== After envsubst ==="
-        envsubst < k8s/auth-service/deployment.yaml | grep -A 5 -B 5 "image:"
-        
-        # Aplicar no cluster
+        echo "=== Applying Deployment ==="
         envsubst < k8s/auth-service/deployment.yaml | kubectl apply -f -
         
-        # Forçar restart do deployment para garantir que use a nova imagem
+        echo "=== Forcing rollout restart ==="
         kubectl rollout restart deployment/auth-service -n $NAMESPACE
         
-        # Aguardar o rollout
+        echo "=== Waiting for rollout status ==="
         kubectl rollout status deployment/auth-service -n $NAMESPACE --timeout=300s
         
-        # Verificar status dos pods
         echo "=== Pod Status ==="
         kubectl get pods -n $NAMESPACE -l app=auth-service
-        
-        # Verificar eventos se houver problema
+
         echo "=== Recent Events ==="
-        kubectl get events -n $NAMESPACE --sort-by=.metadata.creationTimestamp --field-selector involvedObject.name=auth-service | tail -10
-        
-        # Verificar logs se houver pods falhando
-        echo "=== Pod Logs (if any issues) ==="
+        kubectl get events -n $NAMESPACE --sort-by=.metadata.creationTimestamp | tail -10
+
+        echo "=== Checking logs of auth-service pods ==="
         kubectl logs -n $NAMESPACE -l app=auth-service --tail=20 || true
+
 
     - name: Run smoke tests
       run: |
